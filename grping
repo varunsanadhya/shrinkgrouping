@@ -1,75 +1,91 @@
 import pandas as pd
 import numpy as np
-def convert_to_percent(data):
-    data = data/100
-    return(data)
-def get_shrinkages():
-    warp_shrinkage = df.iloc[:198,10].unique()
-    warp_shrinkage = warp_shrinkage[~pd.isnull(warp_shrinkage)]
-    weft_shrinkage = df.iloc[:198,11].unique()
-    weft_shrinkage = weft_shrinkage[~pd.isnull(weft_shrinkage)]
-    # weft_shrinkage = weft_shrinkage[np.logical_not(np.isnan(weft_shrinkage))]
-    return (warp_shrinkage,weft_shrinkage)
+def process(data,warp_shrinkage):# function to calculate sumif count and percent , returns a dataframe
+    sum_meters = [0]*len(warp_shrinkage)
+    count_num =[0]*len(warp_shrinkage)
+    percent = [0]*len(warp_shrinkage)
+    for k in range(len(warp_shrinkage)):
+        for ind in range(len(data)):            
+            if warp_shrinkage[k]==df.iloc[ind,10]:
+                count_num[k] = count_num[k]+1
+                sum_meters[k] = sum_meters[k] + df.iloc[ind,5]
+        percent[k] = round((sum_meters[k]/2509)*100)
+    output = {'Shrinkage':warp_shrinkage,'Sum':sum_meters,'Count':count_num,'Percent':percent}
+    output_table = pd.DataFrame(output)
+    # output_table.to_csv('output.csv')
+    return(output_table)
+def summary_df(data,tolerance):
+    rows, cols = (len(data), len(data))
+    shrinkage = [[0 for x in range(cols)] for y in range(rows)]
+    #iterate over every unique shrinkage 
+    for i in range(len(data)):
+        center = data[i]
+        group = 1
+        max =round(center + tolerance,3)  
+        # print("max=",max)
+        min = round(center - tolerance,3)
+        # print("min=",min)
+        for j in range(len(data)): 
+            if data[j] ==max  or data[j] == min:
+                shrinkage[i][j] = group
+            elif (data[j] <max ) and (data[j] > min):
+                shrinkage[i][j] = group
+            else:
+                if j > i:
+                    center = data[j]
+                    group = group+1
+                    max =round(center + tolerance,3)
+                    min = round(center - tolerance,3)
+                    shrinkage[i][j] = group
+                elif output_df.iloc[j,3]< 6:
+                    shrinkage[i][j] = group
 
-# def group_warp(meters_warp):
-    
-#     # get_shrinkages() not working global variable
-#         for meters in range(len(meters_warp)):
-#             center = warp_shrinkage[meters]
-        
+    print(shrinkage)
+
 df = pd.read_excel('test.xlsx',header=16,usecols=11)
-# meters_warp = df.groupby("Warp%")["Net length"].sum()
-warp_shrinkage = df.iloc[:198,10].unique()# all unique shrikages
+newdf=df.iloc[:198,:12] # select the required data from FCR
+warp_shrinkage = df.iloc[:198,10].unique()# all unique shrinkages
 warp_shrinkage = warp_shrinkage[~pd.isnull(warp_shrinkage)]# remove nan from list
 warp_shrinkage = np.sort(warp_shrinkage)
-meters_warp = df.groupby(df.iloc[:198,10])["Net length"].sum()# sum if
-count_warp = df.groupby(df.iloc[:198,10])["Net length"].count()# count if
-total_meters = df.iloc[:198,5].sum()
+weft_shrinkage = df.iloc[:198,11].unique()# all unique shrinkages
+weft_shrinkage = weft_shrinkage[~pd.isnull(weft_shrinkage)]# remove nan from list
+weft_shrinkage = np.sort(weft_shrinkage)
 
-print ( "total meters is ", total_meters)
-
+print("This is the functions output")
+output_df = process(newdf,warp_shrinkage)
+print(output_df)
 tolerance = 1 # this will be a user input 
 tolerance = tolerance/100 # convert % to number
+summary_df(warp_shrinkage,tolerance)
+print("***********************weft************************************")
+output_df = process(newdf,weft_shrinkage)
+print(output_df)
+summary_df(weft_shrinkage,tolerance)
+#//////////////////*********************************Grouping Algo*********************************//////////////
+# 
+# rows, cols = (len(warp_shrinkage), len(warp_shrinkage))
+# shrinkage = [[0 for x in range(cols)] for y in range(rows)]
+# #iterate over every unique shrinkage 
+# for i in range(len(warp_shrinkage)):
+#     center = warp_shrinkage[i]
+#     group = 1
+#     max =round(center + tolerance,3)  
+#     print("max=",max)
+#     min = round(center - tolerance,3)
+#     print("min=",min)
+#     for j in range(len(warp_shrinkage)): 
+#         if warp_shrinkage[j] ==max  or warp_shrinkage[j] == min:
+#             shrinkage[i][j] = group
+#         elif (warp_shrinkage[j] <max ) and (warp_shrinkage[j] > min):
+#             shrinkage[i][j] = group
+#         else:
+#             if j > i:
+#                 center = warp_shrinkage[j]
+#                 group = group+1
+#                 max =round(center + tolerance,3)
+#                 min = round(center - tolerance,3)
+#                 shrinkage[i][j] = group
+#             elif output_df.iloc[j,3]< 6:
+#                 shrinkage[i][j] = group
 
-percent_warp = []* len(meters_warp) # create a blank array for assignments later
-# shrinkage = [[0 ]*10] *10
-rows, cols = (10, 10) 
-# method 2b 
-shrinkage = [[0 for x in range(cols)] for y in range(rows)]
-
-#iterate over every unique shrinkage 
-for i in range(len(meters_warp)):
-    center = warp_shrinkage[i]
-    group = 1
-    max =round(center + tolerance,3)  
-    print("max=",max)
-    min = round(center - tolerance,3)
-    print("min=",min)
-    for j in range(len(meters_warp)): 
-        if warp_shrinkage[j] ==max  or warp_shrinkage[j] == min:
-            print ("if",i,j)
-            shrinkage[i][j] = group
-        elif (warp_shrinkage[j] <max ) and (warp_shrinkage[j] > min):
-            print ("elif",i,j)
-            shrinkage[i][j] = group
-        else:
-            if j > 0:
-                group = group + 1
-            center = warp_shrinkage[j]
-            max =round(center + tolerance,3)
-            min = round(center - tolerance,3)
-            shrinkage[i][j] = group
-
-# print((meters_warp))
-# print(count_warp.sum())
-# print(group_warp(meters_warp))
-
-print(meters_warp)
-print(count_warp)
-print(shrinkage)
-
-
-#pass output into a dataframe
-data = {'warp%':warp_shrinkage,'meters':meters_warp}
-newdf = pd.DataFrame(data)
-print(newdf)
+# print(shrinkage)
