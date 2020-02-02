@@ -1,75 +1,137 @@
 import pandas as pd
 import numpy as np
-def convert_to_percent(data):
-    data = data/100
-    return(data)
-def get_shrinkages():
-    warp_shrinkage = df.iloc[:198,10].unique()
-    warp_shrinkage = warp_shrinkage[~pd.isnull(warp_shrinkage)]
-    weft_shrinkage = df.iloc[:198,11].unique()
-    weft_shrinkage = weft_shrinkage[~pd.isnull(weft_shrinkage)]
-    # weft_shrinkage = weft_shrinkage[np.logical_not(np.isnan(weft_shrinkage))]
-    return (warp_shrinkage,weft_shrinkage)
-
-# def group_warp(meters_warp):
+# pd.set_option('display.max_rows', 500)
+# pd.set_option('display.max_columns', 500)
+# pd.set_option('display.width', 1000)
+# pd.set_printoptions(max_rows=200, max_columns=15)
+def process(data,warp_shrinkage,total,column_index):# function to calculate sumif count and percent , returns a dataframe
+    sum_meters = [0]*len(warp_shrinkage)
+    count_num =[0]*len(warp_shrinkage)
+    percent = [0]*len(warp_shrinkage)
+    for k in range(len(warp_shrinkage)):
+        for ind in range(len(data)):            
+            if warp_shrinkage[k]==df.iloc[ind,column_index]:
+                count_num[k] = count_num[k]+1
+                sum_meters[k] = sum_meters[k] + df.iloc[ind,5]
+        percent[k] = round((sum_meters[k]/total)*100)
+    output = {'Shrinkage':warp_shrinkage,'Sum':sum_meters,'Count':count_num,'Percent':percent}
+    output_table = pd.DataFrame(output)
+    # output_table =output_table.sort_values(by=['Percent'],ascending= False)
+    output_table.to_csv('output.csv')
+    return(output_table)
+def summary_df(data,tolerance):
+    rows, cols = (len(data), len(data))
+    global shrinkage
+    shrinkage = [[0 for x in range(cols)] for y in range(rows)] #allocates group number to shrinkage
+    global shrinkage_values
+    shrinkage_values =[[0 for x in range(cols)] for y in range(rows)] # allocates the marker shrinkage as per group center
+    exact =[0]* len(output_df)
+    Unalloted =[0] * len(data)
+    number_groups =[0 ]* len(data) # number of groups
     
-#     # get_shrinkages() not working global variable
-#         for meters in range(len(meters_warp)):
-#             center = warp_shrinkage[meters]
-        
+    #iterate over every unique shrinkage 
+    for i in range(len(data)):
+        center = data[i]
+        exact[i] = exact[i] + output_df.iloc[i,3]
+        group = 1
+        max =round(center + tolerance,3)
+        # print("max=",max)
+        min = round(center - tolerance,3)
+        # print("min=",min)
+        for j in range(len(data)): 
+            if data[j] ==max  or data[j] == min:
+                shrinkage[i][j] = group
+                shrinkage_values[i][j] = center
+            elif (data[j] <max ) and (data[j] > min):
+                shrinkage[i][j] = group
+                shrinkage_values[i][j] = center
+            else:
+                if j > i:
+                    if output_df.iloc[j,3]< 6:
+                        shrinkage[i][j] = group
+                        shrinkage_values[i][j] = center
+                    else:
+                        center = data[j]
+                        exact[i] = exact[i] + output_df.iloc[j,3]
+                        group = group+1
+                        max =round(center + tolerance,3)
+                        min = round(center - tolerance,3)
+                        shrinkage[i][j] = group
+                        shrinkage_values[i][j] = center
+                elif output_df.iloc[j,3]< 6:
+                    shrinkage[i][j] = group
+                    shrinkage_values[i][j] = center
+                else:
+                    Unalloted[i] = 1
+        number_groups[i] = group  
+    print(shrinkage)
+    print ("the shrinkage values are: ")
+    print(shrinkage_values)
+    output_df['exact'] = exact
+    output_df['number of groups'] = number_groups
+    output_df['Unallotted'] = Unalloted
+def find_best(given_df):
+    index_df =given_df.sort_values(['Unallotted','number of groups','exact'],ascending =[True,True,False])
+    # print("This is sorted Output_df")
+    return(index_df.index[0])
+
 df = pd.read_excel('test.xlsx',header=16,usecols=11)
-# meters_warp = df.groupby("Warp%")["Net length"].sum()
-warp_shrinkage = df.iloc[:198,10].unique()# all unique shrikages
+newdf=df.iloc[:198,:12] # select the required data from FCR
+warp_shrinkage = df.iloc[:198,10].unique()# all unique shrinkages
 warp_shrinkage = warp_shrinkage[~pd.isnull(warp_shrinkage)]# remove nan from list
 warp_shrinkage = np.sort(warp_shrinkage)
-meters_warp = df.groupby(df.iloc[:198,10])["Net length"].sum()# sum if
-count_warp = df.groupby(df.iloc[:198,10])["Net length"].count()# count if
-total_meters = df.iloc[:198,5].sum()
+weft_shrinkage = df.iloc[:198,11].unique()# all unique shrinkages
+weft_shrinkage = weft_shrinkage[~pd.isnull(weft_shrinkage)]# remove nan from list
+weft_shrinkage = np.sort(weft_shrinkage)
 
-print ( "total meters is ", total_meters)
 
 tolerance = 1 # this will be a user input 
 tolerance = tolerance/100 # convert % to number
 
-percent_warp = []* len(meters_warp) # create a blank array for assignments later
-# shrinkage = [[0 ]*10] *10
-rows, cols = (10, 10) 
-# method 2b 
-shrinkage = [[0 for x in range(cols)] for y in range(rows)]
+output_df = process(newdf,warp_shrinkage,3615,10) #makes a summary of shrinkages
 
-#iterate over every unique shrinkage 
-for i in range(len(meters_warp)):
-    center = warp_shrinkage[i]
-    group = 1
-    max =round(center + tolerance,3)  
-    print("max=",max)
-    min = round(center - tolerance,3)
-    print("min=",min)
-    for j in range(len(meters_warp)): 
-        if warp_shrinkage[j] ==max  or warp_shrinkage[j] == min:
-            print ("if",i,j)
-            shrinkage[i][j] = group
-        elif (warp_shrinkage[j] <max ) and (warp_shrinkage[j] > min):
-            print ("elif",i,j)
-            shrinkage[i][j] = group
-        else:
-            if j > 0:
-                group = group + 1
-            center = warp_shrinkage[j]
-            max =round(center + tolerance,3)
-            min = round(center - tolerance,3)
-            shrinkage[i][j] = group
+summary_df(warp_shrinkage,tolerance)#add exact, no.of groups to outputdf and makes shrink groups
+print("____________Warp____________ Output df")
+print(output_df)
+group_index  = find_best(output_df) # gives the best grouping index
+print("group index is ",group_index)
+#add the best grouping values in output_df
+output_df['Warp Shrinkage group'] = shrinkage[group_index]
+output_df['Marker Warp Shrinkage'] = shrinkage_values[group_index]
 
-# print((meters_warp))
-# print(count_warp.sum())
-# print(group_warp(meters_warp))
+print("The final Output_df Warp is :")
+print(output_df)
 
-print(meters_warp)
-print(count_warp)
-print(shrinkage)
+final_df = newdf
 
+#merge output to the shrinkage report df
+final_df = pd.merge(final_df,output_df, how='left',
+        left_on='Warp%', right_on='Shrinkage')
+final_df.drop(['exact','number of groups','Sum','Count','Percent','Unallotted','Shrinkage'],axis=1,inplace = True)
+final_df.to_excel("output1.xlsx")
+#--------------------------------------Weft ------------------------------------------------
+print("_______________________________Weft_________________")
+output_df = process(newdf,weft_shrinkage,3615,11) #makes a summary of shrinkages
+print(output_df)
+summary_df(weft_shrinkage,tolerance)#add exact, no.of groups to outputdf and makes shrink groups
 
-#pass output into a dataframe
-data = {'warp%':warp_shrinkage,'meters':meters_warp}
-newdf = pd.DataFrame(data)
-print(newdf)
+group_index  = find_best(output_df) # gives the best grouping index
+print ("the group index is = ",group_index)
+#add the best grouping values in output_df
+output_df['Weft Shrinkage group'] = shrinkage[group_index]
+output_df['Marker Weft Shrinkage'] = shrinkage_values[group_index]
+
+print("The final Output_df Weft is :")
+print(output_df)
+
+#merge output to the shrinkage report df
+final_df = pd.merge(final_df,output_df, how='left',
+        left_on='Weft%', right_on='Shrinkage')
+final_df.drop(['exact','number of groups','Sum','Count','Percent','Unallotted','Shrinkage'],axis=1,inplace = True)
+
+final_df.to_excel("output2.xlsx")  # doctest: +SKIP
+join_df = final_df
+# join_df['final_group'] = join_df[['Warp Shrinkage group', 'Weft Shrinkage group']].apply(lambda x: ' '.join(x), axis = 1)
+join_df['final_group'] = join_df['Warp Shrinkage group'].astype(str) + join_df['Weft Shrinkage group'].astype(str)
+print("The final join df is ")
+print(join_df)
